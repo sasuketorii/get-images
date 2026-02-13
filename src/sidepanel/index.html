@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>すしの手</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <button id="scan" class="btn btn-primary">
+        画像を検出
+      </button>
+      <div class="toolbar-right">
+        <button
+          id="theme-toggle"
+          class="theme-toggle"
+          aria-label="テーマ切替"
+          title="テーマ切替"
+          type="button"
+        >
+          <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path
+              d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"
+            ></path>
+          </svg>
+          <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <span id="count" class="badge">0</span>
+        <span class="badge-label">選択中</span>
+      </div>
+    </header>
+
+    <div id="status" class="status" style="display:none"></div>
+
+    <main id="grid" class="grid"></main>
+
+    <footer class="download-bar" id="download-bar" style="display:none">
+      <button id="download" class="btn btn-download btn-full">
+        一括ダウンロード
+      </button>
+    </footer>
+
+    <div id="progress" class="progress-bar" style="display:none">
+      <div id="progress-fill" class="progress-fill"></div>
+      <span id="progress-text" class="progress-text"></span>
+    </div>
+
+    <script type="module" src="main.ts"></script>
+  </body>
+</html>
