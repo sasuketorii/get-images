@@ -21,11 +21,6 @@ chrome.sidePanel
 // Handle messages from sidepanel
 chrome.runtime.onMessage.addListener(
   (msg: MsgToBackground, sender, sendResponse) => {
-    if (msg.type === 'SCAN_REQUEST') {
-      handleScan(sendResponse);
-      return true; // async response
-    }
-
     if (msg.type === 'DOWNLOAD_REQUEST') {
       handleDownload(msg.ids, msg.folder, sendResponse);
       return true;
@@ -40,45 +35,97 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-async function handleScan(
-  sendResponse: (msg: MsgFromBackground) => void
-) {
-  try {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (!tab?.id) {
-      sendResponse({ type: 'SCAN_ERROR', error: 'No active tab' });
-      return;
-    }
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== 'complete') return;
+  autoScan(tabId);
+});
 
-    // Inject content script on demand
+async function isActiveTab(tabId: number): Promise<boolean> {
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+  return activeTab?.id === tabId;
+}
+
+async function autoScan(tabId: number) {
+  let tab: chrome.tabs.Tab | undefined;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return;
+  }
+
+  const url = tab?.url ?? '';
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    tabStates.set(tabId, {
+      images: [],
+      pageUrl: url,
+    });
+    if (await isActiveTab(tabId)) {
+      broadcast({
+        type: 'AUTO_SCAN_COMPLETE',
+        images: [],
+        pageUrl: url,
+      });
+    }
+    return;
+  }
+
+  try {
     await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId },
       files: ['content/index.js'],
     });
+  } catch {
+    tabStates.set(tabId, {
+      images: [],
+      pageUrl: url,
+    });
+    if (await isActiveTab(tabId)) {
+      broadcast({
+        type: 'AUTO_SCAN_COMPLETE',
+        images: [],
+        pageUrl: url,
+      });
+    }
+    return;
+  }
 
-    // Request scan from content script
-    const result: ScanResult = await chrome.tabs.sendMessage(tab.id, {
+  if (await isActiveTab(tabId)) {
+    broadcast({ type: 'AUTO_SCAN_STARTED' });
+  }
+
+  try {
+    const result: ScanResult = await chrome.tabs.sendMessage(tabId, {
       type: 'SCAN',
     } satisfies MsgToContent);
 
-    tabStates.set(tab.id, {
+    tabStates.set(tabId, {
       images: result.images,
       pageUrl: result.pageUrl,
     });
 
-    sendResponse({
-      type: 'SCAN_COMPLETE',
-      images: result.images,
-      pageUrl: result.pageUrl,
+    if (await isActiveTab(tabId)) {
+      broadcast({
+        type: 'AUTO_SCAN_COMPLETE',
+        images: result.images,
+        pageUrl: result.pageUrl,
+      });
+    }
+  } catch {
+    tabStates.set(tabId, {
+      images: [],
+      pageUrl: url,
     });
-  } catch (err) {
-    sendResponse({
-      type: 'SCAN_ERROR',
-      error: err instanceof Error ? err.message : String(err),
-    });
+    if (await isActiveTab(tabId)) {
+      broadcast({
+        type: 'AUTO_SCAN_COMPLETE',
+        images: [],
+        pageUrl: url,
+      });
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "すしの手",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ページ内の画像を検出して一括ダウンロード",
   "permissions": [
     "activeTab",

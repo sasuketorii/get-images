@@ -4,7 +4,6 @@ import type {
   MsgFromBackground,
 } from '../shared/types';
 
-const scanBtn = document.getElementById('scan') as HTMLButtonElement;
 const grid = document.getElementById('grid') as HTMLElement;
 const countBadge = document.getElementById('count') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
@@ -34,47 +33,15 @@ themeToggle?.addEventListener('click', () => {
 
 // Restore state on open
 sendMessage({ type: 'GET_STATE' }).then(msg => {
-  if (msg?.type === 'STATE' && msg.images.length > 0) {
+  if (msg?.type === 'STATE') {
     allImages = msg.images;
     pageUrl = msg.pageUrl || pageUrl;
-    renderGrid();
-    showStatus(`${allImages.length} 件の画像を表示中`);
-  }
-});
-
-// Scan button
-scanBtn.addEventListener('click', async () => {
-  scanBtn.disabled = true;
-  scanBtn.textContent = 'スキャン中...';
-  selectedIds.clear();
-  showStatus('ページをスキャンしています...');
-  grid.innerHTML = '';
-  downloadBar.style.display = 'none';
-
-  const response = await sendMessage({ type: 'SCAN_REQUEST' });
-
-  scanBtn.disabled = false;
-  scanBtn.textContent = '画像を検出';
-
-  if (!response) {
-    showStatus('応答がありません', true);
-    return;
-  }
-
-  if (response.type === 'SCAN_ERROR') {
-    showStatus(response.error, true);
-    return;
-  }
-
-  if (response.type === 'SCAN_COMPLETE') {
-    allImages = response.images;
-    pageUrl = response.pageUrl || pageUrl;
-    if (allImages.length === 0) {
+    if (allImages.length > 0) {
+      renderGrid();
+      showStatus(`${allImages.length} 件の画像を表示中`);
+    } else {
       showStatus('画像が見つかりませんでした');
-      return;
     }
-    renderGrid();
-    showStatus(`${allImages.length} 件の画像が見つかりました`);
   }
 });
 
@@ -199,19 +166,35 @@ function extractFilename(url: string): string {
   }
 }
 
-function buildSafeName(item: ImageItem, index: number): string {
-  let name = extractFilename(item.url).replace(/[<>:"/\\|?*]/g, '_');
-  if (!/\.\w{2,5}$/.test(name)) {
-    name += '.jpg';
-  }
-  return name;
-}
-
 function sanitizePathSegment(value: string): string {
   return value.replace(/[<>:"/\\|?*]/g, '_').replace(/^\/+|\/+$/g, '');
 }
 
 chrome.runtime.onMessage.addListener((msg: MsgFromBackground) => {
+  if (msg.type === 'AUTO_SCAN_STARTED') {
+    selectedIds.clear();
+    showStatus('スキャン中...');
+    grid.innerHTML = '';
+    downloadBar.style.display = 'none';
+    updateCount();
+    return;
+  }
+
+  if (msg.type === 'AUTO_SCAN_COMPLETE') {
+    allImages = msg.images;
+    pageUrl = msg.pageUrl || pageUrl;
+    if (allImages.length === 0) {
+      grid.innerHTML = '';
+      downloadBar.style.display = 'none';
+      updateCount();
+      showStatus('画像が見つかりませんでした');
+      return;
+    }
+    renderGrid();
+    showStatus(`${allImages.length} 件の画像が見つかりました`);
+    return;
+  }
+
   if (!activeDownload) return;
   if (msg.type !== 'DOWNLOAD_PROGRESS') return;
 

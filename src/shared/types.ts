@@ -9,7 +9,6 @@ export interface ImageItem {
 }
 
 export type MsgToBackground =
-  | { type: 'SCAN_REQUEST' }
   | { type: 'DOWNLOAD_REQUEST'; ids: string[]; folder: string }
   | { type: 'GET_STATE' };
 
@@ -22,8 +21,8 @@ export interface ScanResult {
 }
 
 export type MsgFromBackground =
-  | { type: 'SCAN_COMPLETE'; images: ImageItem[]; pageUrl: string }
-  | { type: 'SCAN_ERROR'; error: string }
+  | { type: 'AUTO_SCAN_STARTED' }
+  | { type: 'AUTO_SCAN_COMPLETE'; images: ImageItem[]; pageUrl: string }
   | { type: 'DOWNLOAD_PROGRESS'; completed: number; total: number; failed: number }
   | { type: 'DOWNLOAD_COMPLETE'; folder: string; total: number; failed: number }
   | { type: 'STATE'; images: ImageItem[]; pageUrl: string };
