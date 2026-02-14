@@ -88,7 +88,14 @@ function renderGrid() {
   grid.innerHTML = '';
   downloadBar.style.display = 'flex';
 
-  for (const item of allImages) {
+  // サイズ降順ソート（サイズ不明は末尾）
+  const sorted = [...allImages].sort((a, b) => {
+    const areaA = (a.width ?? 0) * (a.height ?? 0);
+    const areaB = (b.width ?? 0) * (b.height ?? 0);
+    return areaB - areaA;
+  });
+
+  for (const item of sorted) {
     const card = document.createElement('div');
     card.className = 'card';
     card.dataset.id = item.id;
@@ -109,12 +116,18 @@ function renderGrid() {
     info.className = 'card-info';
     const filename = extractFilename(item.url);
     const dims =
-      item.width && item.height ? ` ${item.width}x${item.height}` : '';
-    info.textContent = `${filename}${dims}`;
+      item.width && item.height ? `[${item.width}\u00d7${item.height}]` : '';
+    info.textContent = filename;
     info.title = item.url;
 
     card.appendChild(img);
     card.appendChild(info);
+    if (dims) {
+      const dimsInfo = document.createElement('div');
+      dimsInfo.className = 'card-dims';
+      dimsInfo.textContent = dims;
+      card.appendChild(dimsInfo);
+    }
 
     card.addEventListener('click', () => toggleSelect(item.id, card));
 
