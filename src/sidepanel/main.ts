@@ -129,6 +129,39 @@ function renderGrid() {
       card.appendChild(dimsInfo);
     }
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-copy';
+    copyBtn.textContent = 'コピー';
+    copyBtn.type = 'button';
+    copyBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      copyBtn.disabled = true;
+      try {
+        const resp = await fetch(item.url);
+        const blob = await resp.blob();
+        let pngBlob: Blob;
+        if (blob.type === 'image/png') {
+          pngBlob = blob;
+        } else {
+          pngBlob = await convertToPng(blob);
+        }
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': pngBlob }),
+        ]);
+        copyBtn.textContent = 'コピーしたにゃ';
+        copyBtn.classList.add('copied');
+      } catch {
+        copyBtn.textContent = '失敗...';
+        copyBtn.classList.add('copied');
+      }
+      setTimeout(() => {
+        copyBtn.textContent = 'コピー';
+        copyBtn.classList.remove('copied');
+        copyBtn.disabled = false;
+      }, 1500);
+    });
+    card.appendChild(copyBtn);
+
     card.addEventListener('click', () => toggleSelect(item.id, card));
 
     grid.appendChild(card);
@@ -247,4 +280,33 @@ function getTheme(): Theme {
 
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
+}
+
+function convertToPng(blob: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error('canvas context failed'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(b => {
+        URL.revokeObjectURL(url);
+        if (b) resolve(b);
+        else reject(new Error('toBlob failed'));
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('image load failed'));
+    };
+    img.src = url;
+  });
 }

@@ -31,17 +31,41 @@ export function scanImages(): ScanResult {
     const existing = candidates.get(key);
     if (existing && existing.score >= score) return true;
 
+    const naturalW = img?.naturalWidth || 0;
+    const naturalH = img?.naturalHeight || 0;
+    const candW = candidate?.width || 0;
+    const bestW = Math.max(candW, naturalW);
+    const bestH =
+      bestW > 0 && naturalW > 0 && naturalH > 0
+        ? Math.round(bestW * (naturalH / naturalW))
+        : naturalH;
+
     const item: ImageItem = {
       id: `${source}:${++idCounter}`,
       url,
       source,
-      width: img?.naturalWidth || undefined,
-      height: img?.naturalHeight || undefined,
+      width: bestW || undefined,
+      height: bestH || undefined,
     };
 
     if (!existing) order.push(key);
     candidates.set(key, { item, score });
     return true;
+  }
+
+  // <picture> 要素
+  for (const picture of document.querySelectorAll('picture')) {
+    const childImg = picture.querySelector<HTMLImageElement>('img');
+    if (childImg && isTinyElement(childImg)) continue;
+
+    for (const source of picture.querySelectorAll('source')) {
+      const srcset = source.getAttribute('srcset');
+      if (!srcset) continue;
+      const best = pickBestSrcsetCandidate(srcset);
+      if (best) {
+        add(best.url, 'picture', childImg ?? picture, best);
+      }
+    }
   }
 
   // <img src>
@@ -54,6 +78,13 @@ export function scanImages(): ScanResult {
     }
     if (add(src, 'img', img)) {
       seenElements.add(img);
+    }
+    const srcsetAttr = img.getAttribute('srcset');
+    if (srcsetAttr) {
+      const best = pickBestSrcsetCandidate(srcsetAttr);
+      if (best) {
+        add(best.url, 'srcset', img, best);
+      }
     }
   }
 
